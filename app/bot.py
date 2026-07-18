@@ -1,64 +1,88 @@
+import asyncio
 import logging
+
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 
 from config import BOT_TOKEN, PROJECT_NAME
 
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
 
-# Главное меню
-menu = [
-    ["🆓 Бесплатно", "📦 Уценка"],
-    ["♻️ Б/У", "🏭 Опт"],
-    ["💰 Заработать", "📊 Аналитика"],
-    ["⭐ Проверка", "⚙️ Настройки"]
-]
-
-keyboard = ReplyKeyboardMarkup(menu, resize_keyboard=True)
-
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        f"💎 {PROJECT_NAME}\n\nВыберите раздел:",
-        reply_markup=keyboard
+    keyboard = [
+        ["🔎 Найти бесплатное"],
+        ["📦 Мои находки"],
+        ["ℹ️ О проекте"]
+    ]
+
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard,
+        resize_keyboard=True
     )
 
+    await update.message.reply_text(
+        f"Привет! 👋\n\n"
+        f"Ты в {PROJECT_NAME}.\n"
+        f"Ищу бесплатные и выгодные предложения.",
+        reply_markup=reply_markup
+    )
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        f"{PROJECT_NAME}\n"
+        f"Версия 0.3\n\n"
+        f"Проект поиска бесплатных возможностей и выгодных предложений."
+    )
 
-    if text == "🆓 Бесплатно":
-        await update.message.reply_text("Поиск бесплатных товаров (пока заглушка)")
-    elif text == "📦 Уценка":
-        await update.message.reply_text("Поиск уценки (пока заглушка)")
-    elif text == "♻️ Б/У":
-        await update.message.reply_text("Раздел Б/У (будем расширять)")
-    elif text == "🏭 Опт":
-        await update.message.reply_text("Оптовые предложения (скоро)")
-    elif text == "💰 Заработать":
-        await update.message.reply_text("Раздел заработка (AI стратегия)")
-    elif text == "📊 Аналитика":
-        await update.message.reply_text("Аналитика цен (в разработке)")
-    elif text == "⭐ Проверка":
-        await update.message.reply_text("Проверка продавца (скоро)")
-    elif text == "⚙️ Настройки":
-        await update.message.reply_text("Настройки пользователя")
-    else:
-        await update.message.reply_text("Выберите пункт меню 👇")
+async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Функция находится в разработке. 🚀"
+    )
 
+async def main():
+    if not BOT_TOKEN:
+        raise RuntimeError(
+            "BOT_TOKEN не задан. Добавь токен Telegram в переменные окружения Render."
+        )
 
-def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(CommandHandler("about", about))
+    app.add_handler(
+        MessageHandler(
+            filters.Regex("^ℹ️ О проекте$"),
+            about
+        )
+    )
+    app.add_handler(
+        MessageHandler(
+            filters.ALL,
+            unknown
+        )
+    )
 
-    print("BOT STARTED")
-    app.run_polling()
+    print("BOT STARTED", flush=True)
 
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await app.updater.stop()
+        await app.stop()
+        await app.shutdown()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
